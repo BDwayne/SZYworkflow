@@ -1,12 +1,13 @@
 # SZY workflow installer (run once per machine, and again after `git pull`).
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-#   options: -DsSkillDir <dir>   also install the DeepSeek entry skill into that skills folder
+#   options: -DsSkillDir <dir>   compatibility alias: install generic skills there
 #            -NoClaude / -NoCodex  skip a client
 #            -HomeDir <dir>      install somewhere else (testing)
 # ASCII-only on purpose (Windows PowerShell 5.1).
 [CmdletBinding()]
 param(
     [string]$HomeDir = $env:USERPROFILE,
+    # Kept as a compatibility alias. The same generic skills are installed there.
     [string]$DsSkillDir = "",
     [switch]$NoClaude,
     [switch]$NoCodex
@@ -20,11 +21,18 @@ function CopyDir([string]$src, [string]$dst) {
     New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
     Copy-Item $src $dst -Recurse
 }
-function InstallSkills([string]$group, [string]$target) {
+function InstallSkills([string]$target) {
     New-Item -ItemType Directory -Path $target -Force | Out-Null
-    Get-ChildItem (Join-Path $Repo "skills\$group") -Directory | ForEach-Object {
+    # Remove only skills owned by SZYworkflow v1. The generic v2 entries below
+    # are then installed in their place; unrelated user skills stay untouched.
+    @("szy-blueprint", "szy-replan", "szy-handoff", "szy-runbook", "szy-ds-run") |
+        ForEach-Object {
+            $old = Join-Path $target $_
+            if (Test-Path $old) { Remove-Item $old -Recurse -Force }
+        }
+    Get-ChildItem (Join-Path $Repo "skills\common") -Directory | ForEach-Object {
         CopyDir $_.FullName (Join-Path $target $_.Name)
-        Write-Output ("  {0,-8} {1}" -f $group, (Join-Path $target $_.Name))
+        Write-Output ("  common   {0}" -f (Join-Path $target $_.Name))
     }
 }
 
@@ -32,17 +40,21 @@ function InstallSkills([string]$group, [string]$target) {
 New-Item -ItemType Directory -Path $KitHome -Force | Out-Null
 foreach ($sub in @("procedures", "templates", "scripts")) { CopyDir (Join-Path $Repo "kit\$sub") (Join-Path $KitHome $sub) }
 Copy-Item (Join-Path $Repo "kit\VERSION") (Join-Path $KitHome "VERSION") -Force
-CopyDir (Join-Path $Repo "skills") (Join-Path $KitHome "skills")   # source copy, e.g. for the DeepSeek client
+$KitSkills = Join-Path $KitHome "skills"
+if (Test-Path $KitSkills) { Remove-Item $KitSkills -Recurse -Force }
+CopyDir (Join-Path $Repo "skills\common") (Join-Path $KitSkills "common")
 $ver = (Get-Content (Join-Path $Repo "kit\VERSION") -Raw).Trim()
 Write-Output "SZY workflow $ver"
 Write-Output "  kit      $KitHome"
 
 # 2. skills
-if (-not $NoClaude) { InstallSkills "claude" (Join-Path $HomeDir ".claude\skills") }
-if (-not $NoCodex)  { InstallSkills "codex"  (Join-Path $HomeDir ".codex\skills") }
-if ($DsSkillDir -ne "") { InstallSkills "deepseek" $DsSkillDir }
-else { Write-Output "  deepseek (skipped: the DeepSeek client can use the trigger phrase listed in the project AGENTS.md, or rerun with -DsSkillDir)" }
+if (-not $NoClaude) { InstallSkills (Join-Path $HomeDir ".claude\skills") }
+if (-not $NoCodex)  { InstallSkills (Join-Path $HomeDir ".codex\skills") }
+if ($DsSkillDir -ne "") {
+    InstallSkills $DsSkillDir
+    Write-Output "  note     -DsSkillDir is kept as a compatibility alias for generic skills"
+}
 
 Write-Output ""
-Write-Output "Next: open a project folder and run szy-init (Claude: /szy-init, Codex: `$szy-init)."
-Write-Output "Restart Claude Code / Codex if the new skills do not show up."
+Write-Output "Next: open a project folder and run szy-init."
+Write-Output "Restart your client if the new skills do not show up."

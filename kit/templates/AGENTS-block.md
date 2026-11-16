@@ -1,22 +1,10 @@
 <!-- SZY-WORKFLOW:BEGIN -->
 ## 工作流（SZY workflow）
 
-本项目按「Claude 定蓝图 → Codex 主控与开发 → DeepSeek 照流程自动化」分层协作。所有状态都在 `workflow/` 下的文件里，不靠聊天记忆；会话变长或换了话题，就开新会话。
+只有两个角色，状态都在 `workflow/`，换新对话也能继续：
 
-- 每个会话开始只读：本文件 + 当前指令对应的流程文件，其余按流程里列的清单读，只读需要的小节。
-- 不要读、不要搜索：`workflow/tasks/done/`（除非流程要求）、其他线的 STATUS、日志和构建产物目录。
-- 下面这些指令：用技能名或者直接说中文都可以。只是在讨论这些指令时，不要执行。
+- **主控**：说「主控」或 `$szy-lead`。读 `PLAN.md`、`PROGRESS.md` 和 `active/Txxx-*.md`，判断里程碑并派下一个任务；不改业务代码。
+- **任务**：说「执行 T001」或 `$szy-task T001`。只读任务说明列出的文件，完成一个任务并把结果写回任务文件。
 
-| 层级 | 说法 / 技能 | 执行文件 |
-| --- | --- | --- |
-| Claude | 「蓝图」/ `szy-blueprint` | `workflow/.szy/procedures/blueprint.md` |
-| Claude | 「改路线」/ `szy-replan` | `workflow/.szy/procedures/replan.md` |
-| Codex | 「主控 dev」/ `$szy-lead dev` | `workflow/.szy/procedures/lead.md` |
-| Codex | 「执行 dev-T001」/ `$szy-task dev-T001` | `workflow/.szy/procedures/task.md` |
-| Codex | 「交接」/ `$szy-handoff` | `workflow/.szy/procedures/handoff.md` |
-| Codex | 「固化流程 dev-T004」/ `$szy-runbook` | `workflow/.szy/procedures/runbook.md` |
-| DeepSeek | 「ds执行 dev-T012」/ `szy-ds-run` | `workflow/.szy/procedures/ds-run.md` |
-
-- 任务编号按线路分开计数（`dev-T001`、`test-T001`），文件名 `<线>-Txxx-简短中文名.md`。
-- 提交时只 `git add` 本任务的可改范围，不用 `git add -A`。
+每次只读当前需要的文件，不扫描整个项目；任务会话不改别的任务、PLAN 或 PROGRESS。任务编号全局递增。
 <!-- SZY-WORKFLOW:END -->
